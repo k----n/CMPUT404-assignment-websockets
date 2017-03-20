@@ -3,19 +3,19 @@
   <head> 
     <title>Websockets Assignment</title> 
     <meta charset="utf-8" /> 
-    <meta content='width=device-width; height=device-height; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;' name='viewport' />
+    <meta content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, name='viewport'" />
     <meta name="viewport" content="width=device-width" />
     <meta name="license" content="
-        Copyright 2013 Google, Abram Hindle
+        Copyright 2013 Google, Abram Hindle, 2017 Kalvin Eng
         
-        Licensed under the Apache License, Version 2.0 (the "License");
+        Licensed under the Apache License, Version 2.0 (the 'License');
         you may not use this file except in compliance with the License.
         You may obtain a copy of the License at
         
             http://www.apache.org/licenses/LICENSE-2.0
         
         Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
+        distributed under the License is distributed on an 'AS IS' BASIS,
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         See the License for the specific language governing permissions and
         limitations under the License.
@@ -45,26 +45,38 @@ debug("Test");
 world = {};
 
 //XXX: TODO Make this prettier!
+// Code by MDN from https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Drawing_shapes
 function drawCircle(context,entity) {
+    // smiley face :)
     with(context) {
-        beginPath();                
-        lineWidth = 3;
+        beginPath();  
         var x = entity["x"];
-        var y = entity["y"];
-        //moveTo(x,y);
-        fillStyle = entity["colour"];
-        strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
+        var y = entity["y"];   
+        fillStyle = entity["colour"]; 
+        strokeStyle = fillStyle;        
+        var r = (entity["radius"])?entity["radius"]:50;
+        var eye = r/10;
+        var mouth = r * 0.7;
+        var eye1 = r * 0.2;
+        var eye2 = r *0.3;
+        var eyex = r * 0.4;
+        arc(x, y, r, 0, Math.PI * 2, true); // Outer circle
+        moveTo(x+mouth, y);
+        arc(x, y, mouth, 0, Math.PI, false);  // Mouth (clockwise)
+        moveTo(x-eye1, y-eye1);
+        arc(x-eye2, y-eye1, eye, 0, Math.PI * 2, true);  // Left eye
+        moveTo(x+eyex, y-eye1);
+        arc(x+eye2, y-eye1, eye, 0, Math.PI * 2, true);  // Right eye 
         stroke();                                
     }
 }
 
 function prepEntity(entity) {
     if (!entity["colour"]) {
-        entity["colour"] = "#FF0000";
+        entity["colour"] = "#FECEA8";
     }
     if (!entity["radius"]) {
-        entity["radius"] = 50;
+        entity["radius"] = 150;
     }
     return entity;
 }
@@ -72,7 +84,7 @@ function prepEntity(entity) {
 function clearFrame() {
     with(context) {
 	moveTo(0,0);
-	fillStyle = "#000";
+	fillStyle = "#2A363B";
 	fillRect(0,0,W,H);
     }
 
@@ -125,6 +137,10 @@ function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
     //XXX: Send a XHTML Request that updates the entity you just modified!
+    // https://github.com/abramhindle/WebSocketsExamples/blob/master/static/chat.html
+    var p = {};
+    p[entity] = data;
+    socket.send(JSON.stringify(p));
 }
 var counter = 0;
 function addEntityWithoutName(data) {
@@ -231,16 +247,18 @@ mouse = (function() {
 // Add the application specific mouse listeners!
 //XXX: TODO Make these prettier!
 mouse.mousedowners.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
+    addEntityWithoutName({'x':x,'y':y,'colour':'#FF847C'});
 });
+
 
 mouse.mouseuppers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'red'});
+    addEntityWithoutName({'x':x,'y':y,'colour':'#FECEA8'});
 });
 
+// code from bryc on http://stackoverflow.com/questions/1484506/random-color-generator-in-javascript
 mouse.mousedraggers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'green',
-                          'radius':10});
+    addEntityWithoutName({'x':x,'y':y,'colour':'#' + Math.random().toString(16).slice(-6),
+                          'radius':25});
 });
 
 
@@ -254,6 +272,7 @@ function wsSetup() {
     socket = new WebSocket(url);
     socket.onopen = function() {
         //XXX: TODO What are you going to do here?
+        // send a message that nobody reads?
     };
     socket.onerror = function(msg) {
         debug("WebSocket Error:" + msg.data);
@@ -261,7 +280,13 @@ function wsSetup() {
     socket.onmessage = function(msg) {  
         try {
             debug("WebSocket Recv:" + msg.data);
-            //XXX: TODO What are you going to do here?            
+            //XXX: TODO What are you going to do here?    
+            // https://github.com/abramhindle/WebSocketsExamples/blob/master/static/chat.html
+            var message = JSON.parse(msg.data);
+            for (var entity in message) {
+                world[entity] = message[entity];
+            }        
+            drawNextFrame();            
         } catch (e) {
             alert("socket on message: " + e);
         }

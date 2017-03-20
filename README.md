@@ -21,6 +21,8 @@ Contributors / Licensing
 
 Generally everything is LICENSE'D under the Apache 2 license by Abram Hindle.
 
+Modifications LICENSE'D under the Apache 2 license by Kalvin Eng.
+
 freetests.py is LICENSE'D under a BSD-like license:
 
 From ws4py
@@ -57,3 +59,11 @@ Contributors
 
 * Mark Galloway
 * Abram Hindle
+* Kalvin Eng
+
+Resources Used
+===============
+* https://github.com/abramhindle/WebSocketsExamples/blob/master/chat.py
+* https://github.com/abramhindle/WebSocketsExamples/blob/master/static/chat.html
+* https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Drawing_shapes
+* http://stackoverflow.com/questions/1484506/random-color-generator-in-javascript

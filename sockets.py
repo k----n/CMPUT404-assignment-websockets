@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-# Copyright (c) 2013-2014 Abram Hindle
+# Copyright (c) 2013-2014 Abram Hindle, 2017 Kalvin Eng
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 import flask
-from flask import Flask, request
+from flask import Flask, request, redirect, url_for
 from flask_sockets import Sockets
 import gevent
 from gevent import queue
@@ -59,30 +59,79 @@ class World:
     def world(self):
         return self.space
 
-myWorld = World()        
+myWorld = World()     
 
 def set_listener( entity, data ):
     ''' do something with the update ! '''
+    entities = json.dumps({entity: data})
+    for c in clients:
+        c.put(entities)    
 
 myWorld.add_set_listener( set_listener )
+
+# https://github.com/abramhindle/WebSocketsExamples/blob/master/chat.py
+clients = list()
+
+def send_all(msg):
+    for client in clients:
+        client.put( msg )
+
+def send_all_json(obj):
+    send_all( json.dumps(obj) )
+    
+class Client:
+    def __init__(self):
+        self.queue = queue.Queue()
+
+    def put(self, v):
+        self.queue.put_nowait(v)
+
+    def get(self):
+        return self.queue.get()   
         
 @app.route('/')
 def hello():
     '''Return something coherent here.. perhaps redirect to /static/index.html '''
-    return None
+    return redirect(url_for('static', filename='index.html'))
 
 def read_ws(ws,client):
     '''A greenlet function that reads from the websocket and updates the world'''
     # XXX: TODO IMPLEMENT ME
-    return None
+    # https://github.com/abramhindle/WebSocketsExamples/blob/master/chat.py
+    try:
+        while True:
+            msg = ws.receive()
+            print "WS RECV: %s" % msg
+            if (msg is not None):
+                packet = json.loads(msg)
+                send_all_json( packet )                               
+                for k in packet.keys():
+                    myWorld.set(k, packet[k])     
+            else:
+                break
+    except Exception as e:# WebSocketError as e:
+        print "WS Error %s" % e
 
 @sockets.route('/subscribe')
 def subscribe_socket(ws):
     '''Fufill the websocket URL of /subscribe, every update notify the
        websocket and read updates from the websocket '''
     # XXX: TODO IMPLEMENT ME
-    return None
-
+    # https://github.com/abramhindle/WebSocketsExamples/blob/master/chat.py    
+    client = Client()
+    clients.append(client)
+    g = gevent.spawn( read_ws, ws, client )    
+    try:
+        client.put(json.dumps(myWorld.world())) # make sure the world is the same across all clients
+        while True:
+            # block here
+            msg = client.get()
+            ws.send(msg)
+    except Exception as e:# WebSocketError as e:
+        print "WS Error %s" % e
+    finally:
+        clients.remove(client)
+        gevent.kill(g)
 
 def flask_post_json():
     '''Ah the joys of frameworks! They do so much work for you
@@ -94,28 +143,30 @@ def flask_post_json():
     else:
         return json.loads(request.form.keys()[0])
 
+# the following code was not required to be implemented, so it was just copied from last assignment
+# *just in case*
 @app.route("/entity/<entity>", methods=['POST','PUT'])
 def update(entity):
     '''update the entities via this interface'''
-    return None
+    data = flask_post_json()
+    myWorld.set(entity, data)
+    return json.dumps(myWorld.get(entity))
 
 @app.route("/world", methods=['POST','GET'])    
 def world():
     '''you should probably return the world here'''
-    return None
+    return json.dumps(myWorld.world())
 
 @app.route("/entity/<entity>")    
 def get_entity(entity):
     '''This is the GET version of the entity interface, return a representation of the entity'''
-    return None
-
+    return json.dumps(myWorld.get(entity))
 
 @app.route("/clear", methods=['POST','GET'])
 def clear():
     '''Clear the world out!'''
-    return None
-
-
+    myWorld.clear()
+    return json.dumps(myWorld.world())
 
 if __name__ == "__main__":
     ''' This doesn't work well anymore:
